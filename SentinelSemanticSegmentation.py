@@ -27,13 +27,12 @@ from src.models.Unet import Unet
 from src.models.evaluate_model import evaluate_test_set, write_csv_files
 
 # Don't allow tensorflow to reserve all memory available
-#from keras.backend.tensorflow_backend import set_session
-#config = tf.ConfigProto()
-#config.gpu_options.allow_growth = True  # dynamically grow the memory used on the GPU
-#config.log_device_placement = True  # to log device placement (on which device the operation ran)
-                                    # (nothing gets printed in Jupyter, only if you run it standalone)
-#sess = tf.Session(config=config)  # set this TensorFlow session as the default session for Keras
-#set_session(sess)
+# from keras.backend import set_session
+# config = tf.compat.v1.ConfigProto()
+# config.gpu_options.allow_growth = True  # dynamically grow the memory used on the GPU
+# config.log_device_placement = True  # to log device placement (on which device the operation ran) (nothing gets printed in Jupyter, only if you run it standalone)
+# sess = tf.compat.v1.Session(config=config)  # set this TensorFlow session as the default session for Keras
+# set_session(sess)
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Define default pipeline
@@ -114,6 +113,7 @@ if __name__ == '__main__':
 
     # Load hyperparameters into the params object containing name-value pairs
     params = get_params(args.model, args.satellite)
+    print(params)
 
     # If any hyperparameters were overwritten in the commandline, parse them into params
     if args.params:

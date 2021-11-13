@@ -1,9 +1,11 @@
 #!/usr/bin/env python
 # Needed to set seed for random generators for making reproducible experiments
+import tensorflow as tf
+
 from numpy.random import seed
 seed(1)
-from tensorflow import set_random_seed
-set_random_seed(1)
+tf.random.set_seed(1)
+
 
 import datetime
 import os
@@ -14,8 +16,7 @@ import numpy as np
 from keras import backend as K
 from keras.backend import binary_crossentropy
 from keras.callbacks import ModelCheckpoint, TensorBoard, ReduceLROnPlateau, CSVLogger, EarlyStopping
-from keras.utils import Sequence
-
+from tensorflow.keras.utils import Sequence
 from src.utils import extract_collapsed_cls, extract_cls_mask, image_normalizer, get_cls
 
 

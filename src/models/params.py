@@ -1,79 +1,49 @@
 #!/usr/bin/env python
-import tensorflow as tf
+import numpy
+from tensorboard.plugins.hparams import api as hp
 import os
 import inspect
 
 
 def get_params(model, satellite):
     if model == 'U-net' and satellite == 'Sentinel-2':
-        return tf.contrib.training.HParams(learning_rate=0.001,
-                                           decay=1e-1,
-                                           dropout=0.5,
-                                           L2reg=1e-2,
-                                           threshold=0.5,  # Threshold to create binary cloud mask
-                                           patch_size=320,  # Width and height of the patches the img is divided into
-                                           overlap=40,  # Overlap in pixels when predicting (to avoid border effects)
-                                           batch_size=32,
-                                           steps_per_epoch=40,  # = batches per epoch
-                                           epochs=10,
-                                           norm_threshold=12000,  # Threshold for the normalizer
-                                           initial_model='sen2cor',  # Initial is model for training (sen2cor or fmask)
-                                           cls='cloud',
-                                           collapse_cls=True,  # Collapse classes to one binary mask (False => multi_cls model)
-                                           bands=[2, 3, 4, 8],  # Band 8A is band 13
-                                           tile_size=10980,  # Pixels per tile (both in height and width)
-                                           # Get absolute path of the project (https://stackoverflow.com/questions/50499
-                                           # /how-do-i-get-the-path-and-name-of-the-file-that-is-currently-executing)
-                                           #project_path=os.path.dirname(os.path.abspath(inspect.stack()[-1][1])) + "/")
-                                           project_path="/home/jhj/phd/GitProjects/SentinelSemanticSegmentation/",
-                                           satellite='Sentinel-2')
+        hparams = {
+            "learning_rate": 0.001,
+            "decay": 1e-1,
+            "dropout": 0.5,
+            "L2reg": 1e-2,
+            "threshold": 0.5,
+            "patch_size": 320,
+            "overlap": 40,
+            "batch_size": 32,
+            "steps_per_epoch": 40,
+            "epochs": 10,
+            "norm_threshold": 12000,
+            "initial_model": 'sen2cor',
+            "cls": 'cloud',
+            "collapse_cls": True,
+            "bands": [2, 3, 4, 8],
+            "tile_size": 10980,
+            "project_path": '/home/jhj/phd/GitProjects/SentinelSemanticSegmentation/',
+            "satellite": 'Sentinel-2'
+        }
+        return hp.HParam(hparams)
 
     elif model == 'U-net' and satellite == 'Landsat8':
-        return tf.contrib.training.HParams(modelID='180609113138',
-                                           num_gpus=2,
-                                           optimizer='Adam',
-                                           loss_func='binary_crossentropy',
-                                           activation_func='elu',  # https://keras.io/activations/
-                                           initialization='glorot_uniform',  # Initialization of layers
-                                           use_batch_norm=True,
-                                           dropout_on_last_layer_only=True,
-                                           early_stopping=False,  # Use early stopping in optimizer
-                                           reduce_lr=False,  # Reduce learning rate during training
-                                           save_best_only=False,  # Save only best step in each training epoch
-                                           use_ensemble_learning=False,  # Not implemented at the moment
-                                           ensemble_method='Bagging',
-                                           learning_rate=1e-4,
-                                           dropout=0.2,  # Must be written as float for parser to work
-                                           L1reg=0.,  # Must be written as float for parser to work
-                                           L2reg=1e-4,  # Must be written as float for parser to work
-                                           L1L2reg=0.,  # Must be written as float for parser to work
-                                           decay=0.,  # Must be written as float for parser to work
-                                           batch_norm_momentum=0.7,  # Momentum in batch normalization layers
-                                           threshold=0.5,  # Threshold to create binary cloud mask
-                                           patch_size=256,  # Width and height of the patches the img is divided into
-                                           overlap=40,  # Overlap in pixels when predicting (to avoid border effects)
-                                           overlap_train_set=0,  # Overlap in training data patches (must be even)
-                                           batch_size=40,
-                                           steps_per_epoch=None,  # = batches per epoch
-                                           epochs=5,
-                                           norm_method='enhance_contrast',
-                                           norm_threshold=65535,  # Threshold for the contrast enhancement
-                                           cls=['cloud', 'thin'],
-                                           collapse_cls=True,
-                                           affine_transformation=True,  # Regular data augmentation
-                                           brightness_augmentation=False,  # Experimental data augmentation
-                                           # Collapse classes to one binary mask (False => multi_cls model)
-                                           # TODO: IF YOU CHOOSE BAND 8, IT DOES NOT MATCH THE .npy TRAINING DATA
-                                           bands=[1, 2, 3, 4, 5, 6, 7],  # Band 8 is the panchromatic band
-                                           # Get absolute path of the project (https://stackoverflow.com/questions/50499
-                                           # /how-do-i-get-the-path-and-name-of-the-file-that-is-currently-executing)
-                                           # project_path=os.path.dirname(os.path.abspath(inspect.stack()[-1][1])) + "/")
-                                           project_path="/home/jhj/phd/GitProjects/SentinelSemanticSegmentation/",
-                                           satellite='Landsat8',
-                                           train_dataset='Biome_fmask',  # Training dataset (gt/fmask/sen2cor)
-                                           test_dataset='Biome_gt',  # Test dataset (gt/fmask/sen2cor)
-                                           split_dataset=True,  # Not used at the moment.
-                                           test_tiles=__data_split__('Biome_gt'))  # Used for testing if dataset is split
+
+        hparams = {"modelID": '180609113138', "num_gpus": 2, "optimizer": 'Adam', "loss_func": 'binary_crossentropy',
+                    "activation_func": 'elu', "initialization": 'glorot_uniform', "use_batch_norm": True,
+                    "dropout_on_last_layer_only": True, "early_stopping": False, "reduce_lr": False,
+                    "save_best_only": False, "use_ensemble_learning": False, "ensemble_method": 'Bagging',
+                    "batch_norm_momentum": 0.7, "affine_transformation": True, "brightness_augmentation": False,
+                    "learning_rate": 1e-4, "dropout": 0.2, "L1reg": 0, "L2reg": 1e-4, "L1L2reg": 0, "decay": 0,
+                    "threshold": 0.5, "patch_size": 256, "overlap": 40, "overlap_train_set": 0, "batch_size": 40,
+                    "epochs": 5, "norm_method": 'enhance_contrast', "norm_threshold": 65535,
+                    "collapse_cls": True, "bands": [1, 2, 3, 4, 5, 6, 7], "cls" : ['cloud', 'thin'],
+                    "project_path": "/home/jhj/phd/GitProjects/SentinelSemanticSegmentation/", "satellite": 'Landsat8',
+                    "train_dataset": 'Biome_fmask', "test_dataset": 'Biome_gt', "split_dataset": True,
+                    "test_tiles": __data_split__('Biome_gt')}
+        return hp.HParam(hparams)
 
 
 def __data_split__(dataset):
@@ -179,7 +149,7 @@ def __data_split__(dataset):
                       'LC81070152013260LGN00',
                       'LC81500152013225LGN00']
 
-        #test_tiles = ['LC82290572014141LGN00',
+        # test_tiles = ['LC82290572014141LGN00',
         #              'LC81080162013171LGN00']
 
         return [train_tiles, test_tiles]

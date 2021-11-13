@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 #  Needed to set seed for random generators for making reproducible experiments
+import tensorflow
 from numpy.random import seed
 seed(1)
-from tensorflow import set_random_seed
-set_random_seed(1)
 
+tensorflow.random.set_seed(1)
 import numpy as np
 import tifffile as tiff
 import os
