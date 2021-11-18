@@ -21,6 +21,7 @@ import os
 import random
 import numpy as np
 import tensorflow as tf
+from src.data.toa_correction import toa_correct_dataset
 from src.data.make_dataset import make_numpy_dataset
 from src.models.params import get_params
 from src.models.Unet import Unet
@@ -43,6 +44,10 @@ parser = argparse.ArgumentParser(description='Pipeline for running the project',
 
 # Define which steps should be run automatically when this file is run. When using action='store_true', the argument
 # has to be provided to run the step. When using action='store_false', the step will be run when this file is executed.
+parser.add_argument('--toa_correct',
+                    action='store_true',
+                    help='Run the pre-processing step')
+
 parser.add_argument('--make_dataset',
                     action='store_true',
                     help='Run the pre-processing step')
@@ -59,7 +64,6 @@ parser.add_argument('--test',
                     action='store_true',
                     help='Run test step')
 
-
 # ----------------------------------------------------------------------------------------------------------------------
 # Define the arguments used in the entire pipeline
 # ----------------------------------------------------------------------------------------------------------------------
@@ -72,7 +76,6 @@ parser.add_argument('--initial_model',
                     type=str,
                     default='sen2cor',
                     help='Which initial is model is wanted for training (sen2cor or fmask)')
-
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Define the arguments for the training
@@ -90,7 +93,6 @@ parser.add_argument('--dev_dataset',
                     action='store_true',
                     help='Very small dataset to be used while developing the project')
 
-
 # ----------------------------------------------------------------------------------------------------------------------
 # Define the arguments for the visualization
 # ----------------------------------------------------------------------------------------------------------------------
@@ -98,7 +100,6 @@ parser.add_argument('--dataset',
                     type=str,
                     default='Biome',
                     help='Dataset for evaluating Landsat 8 data')
-
 
 if __name__ == '__main__':
     # Load the arguments
@@ -121,7 +122,13 @@ if __name__ == '__main__':
 
     # If you want to use local files (else it uses network drive)
     if args.dev_dataset:
-        params.data_path = "/home/jhj/phd/GitProjects/SentinelSemanticSegmentation/data/processed/dev_dataset/"
+        params.data_path = "C:/Users/Dewire/Documents/RS-Net/data/processed/dev_dataset/"
+        print(params.data_path)
+
+    # Check to see if a new data set should be processed from the raw data
+    if args.toa_correct:
+        print("Processing TOA CORRECTION on data set")
+        toa_correct_dataset(params)
 
     # Check to see if a new data set should be processed from the raw data
     if args.make_dataset:
@@ -162,9 +169,9 @@ if __name__ == '__main__':
             for k in range(k_folds):
                 # Define train and test tiles (note that params.test_tiles[0] are training and .test_tiles[1] are test)
                 if 'SPARCS' in params.train_dataset:
-                    products_per_fold = int(80/k_folds)
+                    products_per_fold = int(80 / k_folds)
                     # Define products for test
-                    params.test_tiles[1] = sparcs_products[k*products_per_fold:(k+1)*products_per_fold]
+                    params.test_tiles[1] = sparcs_products[k * products_per_fold:(k + 1) * products_per_fold]
                     # Define products for train by loading all sparcs products and then removing test products
                     params.test_tiles[0] = sparcs_products
                     for product in params.test_tiles[1]:
@@ -177,7 +184,8 @@ if __name__ == '__main__':
                     params.test_tiles[1] = temp
 
                 # Train and evaluate
-                params.modelID = params.modelID[0:12] + '-CV' + str(k+1) + 'of' + str(k_folds)  # Used for saving results
+                params.modelID = params.modelID[0:12] + '-CV' + str(k + 1) + 'of' + str(
+                    k_folds)  # Used for saving results
                 model = Unet(params)
                 print("Training on fold " + str(k + 1) + " of " + str(k_folds))
                 model.train(params)
