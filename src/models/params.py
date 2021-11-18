@@ -101,7 +101,7 @@ def get_params(model, satellite):
                   # project_path=os.path.dirname(os.path.abspath(inspect.stack()[-1][1])) + "/")
                   project_path="C:/Users/Dewire/Documents/RS-Net/",
                   satellite='Landsat8',
-                  train_dataset='SPARCS',
+                  train_dataset='SPARCS_gt',
                   # Training dataset (gt/fmask/sen2cor)
                   test_dataset='SPARCS_gt',  # Test dataset (gt/fmask/sen2cor)
                   split_dataset=True,  # Not used at the moment.

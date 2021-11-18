@@ -1,6 +1,7 @@
 import os
 import time
 import numpy as np
+import random
 import tifffile as tiff
 from PIL import Image
 from src.utils import load_product, get_cls, extract_collapsed_cls, extract_cls_mask, predict_img, image_normalizer
@@ -11,27 +12,42 @@ def evaluate_test_set(model, dataset, num_gpus, params, save_output=False, write
         __evaluate_biome_dataset__(model, num_gpus, params, save_output=save_output, write_csv=write_csv)
 
     elif dataset == 'SPARCS_gt':
+        print('IN 1')
         __evaluate_sparcs_dataset__(model, num_gpus, params, save_output=save_output, write_csv=write_csv)
 
 
 def __evaluate_sparcs_dataset__(model, num_gpus, params, save_output=False, write_csv=True):
     # Find the number of classes and bands
+    print('IN 2')
     if params.collapse_cls:
         n_cls = 1
     else:
         n_cls = np.size(params.cls)
     n_bands = np.size(params.bands)
-
+    print('IN 3')
     # Get the name of all the products (scenes)
     data_path = params.project_path + "data/raw/SPARCS_dataset/"
     toa_path = params.project_path + "data/processed/SPARCS_TOA/"
     products = sorted(os.listdir(data_path))
     products = [p for p in products if 'data.tif' in p]
-    products = [p for p in products if 'xml' not in p]
+    print(products)
+    print(len(products))
 
     # If doing CV, only evaluate on test split
-    if params.split_dataset:
-        products = params.test_tiles[1]
+    # if params.split_dataset:
+    #     # print('IN 4')
+    #     # seed = 1
+    #     # random.seed(seed)
+    #     # random.shuffle(products)
+    #     # k_folds = 5
+    #     # for k in range(k_folds):
+    #     #     products_per_fold = int(75 / k_folds)
+    #     #     # Define products for test
+    #     #     params.test_tiles[1] = products[k * products_per_fold:(k + 1) * products_per_fold]
+    #     #     # Define products for train by loading all sparcs products and then removing test products
+    #     products = params.test_tiles[1]
+    #     print('PARAMS.TEST_TILES')
+    #     print(products)
 
     # Define thresholds and initialize evaluation metrics dict
     thresholds = [0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5,
@@ -39,9 +55,10 @@ def __evaluate_sparcs_dataset__(model, num_gpus, params, save_output=False, writ
 
     evaluation_metrics = {}
     evaluating_product_no = 1  # Used in print statement later
-
+    print('IN 5')
     for product in products:
         # Time the prediction
+        print('IN 6')
         start_time = time.time()
 
         # Load data
@@ -63,7 +80,7 @@ def __evaluate_sparcs_dataset__(model, num_gpus, params, save_output=False, writ
         padding_size = params.overlap
         npad = ((padding_size, padding_size), (padding_size, padding_size), (0, 0))
         img_padded = np.pad(img, pad_width=npad, mode='symmetric')
-
+        print('IN 7')
         # Get the masks
         #cls = get_cls(params)
         cls = [5]  # TODO: Currently hardcoded to look at clouds - fix it!
@@ -91,7 +108,7 @@ def __evaluate_sparcs_dataset__(model, num_gpus, params, save_output=False, writ
         # Find the valid pixels and cast to uint8 to reduce processing time
         valid_pixels_mask = np.uint8(np.clip(img[:, :, 0], 0, 1))
         mask_true = np.uint8(mask_true)
-
+        print('IN 8')
         # Loop over different threshold values
         for j, threshold in enumerate(thresholds):
             predicted_binary_mask = np.uint8(predicted_mask >= threshold)
@@ -157,6 +174,7 @@ def __evaluate_sparcs_dataset__(model, num_gpus, params, save_output=False, writ
     print("Or " + str(float(exec_time)/np.size(products)) + "s per image")
 
     if write_csv:
+        print('IN WRITE CSV')
         write_csv_files(evaluation_metrics, params)
 
 
@@ -393,6 +411,7 @@ def write_csv_files(evaluation_metrics, params):
     if 'Biome' in params.train_dataset and 'Biome' in params.test_dataset:
         file_name = 'param_optimization_BiomeTrain_BiomeEval.csv'
     elif 'SPARCS' in params.train_dataset and 'SPARCS' in params.test_dataset:
+        print('CORRECT CSV FILE')
         file_name = 'param_optimization_SPARCSTrain_SPARCSEval.csv'
     elif 'Biome' in params.train_dataset and 'SPARCS' in params.test_dataset:
         file_name = 'param_optimization_BiomeTrain_SPARCSEval.csv'
@@ -401,7 +420,7 @@ def write_csv_files(evaluation_metrics, params):
 
     if 'fmask' in params.train_dataset:
         file_name = file_name[:-4] + '_fmask.csv'
-
+    print('csv create')
     # Create csv file
     if not os.path.isfile(params.project_path + 'reports/Unet/' + file_name):
         f = open(params.project_path + 'reports/Unet/' + file_name, 'a')
@@ -429,7 +448,7 @@ def write_csv_files(evaluation_metrics, params):
         # Create headers for averaged metrics
         f.write(string + 'mean_accuracy,mean_precision,mean_recall,mean_f_one_score,mean_omission,mean_comission,mean_pixel_jaccard\n')
         f.close()
-
+    print('CSV 1')
     # Write a new line for each threshold value
     for threshold in list(evaluation_metrics[list(evaluation_metrics)[0]]):  # Use first product to list thresholds
         # Update the params threshold value before writing
@@ -452,6 +471,7 @@ def write_csv_files(evaluation_metrics, params):
 
         # Initialize variables for calculating mean visualization set values
         accuracy_sum = precision_sum = recall_sum = f_one_score_sum = omission_sum = comission_sum = pixel_jaccard_sum=0
+        print('CSV 2')
 
         # Write visualization set values
         for product in list(evaluation_metrics):
@@ -476,6 +496,7 @@ def write_csv_files(evaluation_metrics, params):
                     comission_sum += evaluation_metrics[product][threshold][key]
                 elif 'pixel_jaccard' in key:
                     pixel_jaccard_sum += evaluation_metrics[product][threshold][key]
+        print('CSV 3')
 
         # Add mean values to string
         n_products = np.size(list(evaluation_metrics))
@@ -487,3 +508,4 @@ def write_csv_files(evaluation_metrics, params):
         # Write string and close csv file
         f.write(string + '\n')
         f.close()
+        print('CSV 4')

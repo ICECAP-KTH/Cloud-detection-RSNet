@@ -152,12 +152,12 @@ if __name__ == '__main__':
             if 'Biome' in params.train_dataset:
                 k_folds = 2  # Biome dataset is made for 2-fold CV
             else:
-                k_folds = 5  # SPARCS contains 80 scenes, so split it nicely
+                k_folds = 5  # SPARCS contains 75 scenes, so split it nicely
 
                 # Create a list of names for the splitting
                 sparcs_products = sorted(os.listdir(params.project_path + "data/raw/SPARCS_dataset/"))
                 sparcs_products = [f for f in sparcs_products if 'data.tif' in f]
-                sparcs_products = [f for f in sparcs_products if 'aux' not in f]
+                #sparcs_products = [f for f in sparcs_products if 'aux' not in f]
 
                 # Randomize the list of SPARCS products
                 seed = 1
@@ -169,7 +169,7 @@ if __name__ == '__main__':
             for k in range(k_folds):
                 # Define train and test tiles (note that params.test_tiles[0] are training and .test_tiles[1] are test)
                 if 'SPARCS' in params.train_dataset:
-                    products_per_fold = int(80 / k_folds)
+                    products_per_fold = int(75 / k_folds)
                     # Define products for test
                     params.test_tiles[1] = sparcs_products[k * products_per_fold:(k + 1) * products_per_fold]
                     # Define products for train by loading all sparcs products and then removing test products

@@ -28,6 +28,7 @@ def make_numpy_dataset(params):
             print('Processing validation data set')
             __make_landsat8_val_dataset__(params)
         elif 'SPARCS' in params.train_dataset:
+            print('IN SPARCS')
             __make_landsat8_sparcs_dataset__(params)
             print('Processing validation data set')
             __make_landsat8_val_dataset__(params)
@@ -189,6 +190,7 @@ def __make_landsat8_sparcs_dataset__(params):
     """
     Loads the training data into numpy arrays
     """
+    print('IN 1')
     # Start by deleting the old processed dataset and create new folders
     shutil.rmtree(params.project_path + 'data/processed/train', ignore_errors=True)
     shutil.rmtree(params.project_path + 'data/processed/val', ignore_errors=True)
@@ -207,9 +209,11 @@ def __make_landsat8_sparcs_dataset__(params):
     products = sorted(os.listdir(raw_data_path))
     products = [f for f in products if 'data.tif' in f]
     products = [f for f in products if 'aux' not in f]
+    print('IN 2')
 
     # Init variable for image
     x = np.zeros((1000, 1000, 10), dtype=np.uint16) # Use to uint16 to save space (org. data is in uint16)
+    print('IN 3')
 
     for product in products:
         print('Processing product: ' + product)
@@ -221,21 +225,27 @@ def __make_landsat8_sparcs_dataset__(params):
         x.astype(np.uint16)
         y = np.zeros((np.shape(x)[0], np.shape(x)[1], 1), dtype=np.uint8)
         if params.train_dataset == 'SPARCS_gt':
+            print('IN 3')
             y[:, :, 0] = Image.open(raw_data_path + product[:-8] + "mask.png")
         elif params.train_dataset == 'SPARCS_fmask':
+            print('IN 4 -BAD--------------------------------')
             y[:, :, 0] = Image.open(fmask_path + product[:-8] + "fmask.png")
         else:
             raise ValueError('Invalid dataset. Choose Biome_gt, Biome_fmask, SPARCS_gt, or SPARCS_fmask.')
+
+        print('IN 5')
 
         # Mirror-pad the image and mask such that it matches the required patches
         padding_size = int(params.patch_size/2)
         npad = ((padding_size, padding_size), (padding_size, padding_size), (0, 0))
         x_padded = np.pad(x, pad_width=npad, mode='symmetric')
         y_padded = np.pad(y, pad_width=npad, mode='symmetric')
+        print('IN 6')
 
         # Patch the image and the mask
         x_patched, _, _ = patch_image(x_padded, params.patch_size, overlap=params.overlap_train_set)
         y_patched, _, _ = patch_image(y_padded, params.patch_size, overlap=params.overlap_train_set)
+        print('IN 7')
 
         # Save all the patches individually
         for patch in range(np.size(x_patched, axis=0)):
@@ -245,6 +255,7 @@ def __make_landsat8_sparcs_dataset__(params):
 
                 np.save(processed_data_path + 'train/mask/' + product[:-9] + '_y_patch-%d'
                         % patch, y_patched[patch, :, :, :])
+        print('IN 8')
 
 
 def __make_sentinel2_val_dataset__(params):
@@ -293,11 +304,15 @@ def __make_landsat8_val_dataset__(params):
     """
     Creates validation data set of 10% of the training data set (uses random patches)
     """
+    print('IN 9')
+
     data_path = params.project_path + 'data/processed/'
+    print('IN 10')
 
     # Create sorted lists of all the training data
     trn_files = sorted(os.listdir(data_path + 'train/img/'))
     mask_files = sorted(os.listdir(data_path + 'train/mask/'))  # List all mask files
+    print('IN 11')
 
     # Shuffle the list (use the same seed such that images and masks match)
     seed = 1
@@ -306,14 +321,18 @@ def __make_landsat8_val_dataset__(params):
 
     random.seed(seed)
     random.shuffle(mask_files)
+    print('IN 12')
 
     # Remove the last 90% of the files (ie. keep 10% for validation data set)
     trn_files = trn_files[0: int(len(trn_files) * 0.10)]
     mask_files = mask_files[0: int(len(mask_files) * 0.10)]
+    print('IN 13')
 
     # Move the files
     for f in trn_files:
+        print('IN 14')
         shutil.move(data_path + 'train/img/' + f, data_path + 'val/img/' + f)
 
     for f in mask_files:
+        print('IN 15')
         shutil.move(data_path + 'train/mask/' + f, data_path + 'val/mask/' + f)
