@@ -202,28 +202,14 @@ def __evaluate_kth_dataset__(model, num_gpus, params, save_output=True, write_cs
     # Get the name of all the products (scenes)
     data_path = params.project_path + "data/raw/KTH/"
     toa_path = params.project_path + "data/raw/KTH/"
+    data_output_path = params.project_path + "data/output/KTH/"
     products = sorted(os.listdir(data_path))
     print(products)
     print(len(products))
 
-    # If doing CV, only evaluate on test split
-    # if params.split_dataset:
-    #     # print('IN 4')
-    #     # seed = 1
-    #     # random.seed(seed)
-    #     # random.shuffle(products)
-    #     # k_folds = 5
-    #     # for k in range(k_folds):
-    #     #     products_per_fold = int(75 / k_folds)
-    #     #     # Define products for test
-    #     #     params.test_tiles[1] = products[k * products_per_fold:(k + 1) * products_per_fold]
-    #     #     # Define products for train by loading all sparcs products and then removing test products
-    #     products = params.test_tiles[1]
-    #     print('PARAMS.TEST_TILES')
-    #     print(products)
 
     # Define thresholds and initialize evaluation metrics dict
-    thresholds = [0.510, 0.511,0.512,0.513,0.514,0.515,0.516,0.517, 0.518, 0.519, 0.520]
+    thresholds = [0.511]
 
     evaluation_metrics = {}
     evaluating_product_no = 1  # Used in print statement later
@@ -231,6 +217,7 @@ def __evaluate_kth_dataset__(model, num_gpus, params, save_output=True, write_cs
     for product in products:
         # Time the prediction
         print('IN 6')
+
         start_time = time.time()
 
         # Load data
@@ -243,119 +230,46 @@ def __evaluate_kth_dataset__(model, num_gpus, params, save_output=True, write_cs
             if b < len(params.bands):
                 img[:, :, i] = img_all_bands[:, :, b]
 
-        # Load true mask
-        #mask_true = np.array(Image.open(data_path + product + 'mask.png'))
-
         # Pad the image for improved borders
         padding_size = params.overlap
         npad = ((padding_size, padding_size), (padding_size, padding_size), (0, 0))
         img_padded = np.pad(img, pad_width=npad, mode='symmetric')
         print('IN 7')
-        # Get the masks
-        #cls = get_cls(params)
-        cls = [5]  # TODO: Currently hardcoded to look at clouds - fix it!
-
-        # Create the binary masks
-        # if params.collapse_cls:
-        #     mask_true = extract_collapsed_cls(mask_true, cls)
-        #
-        # else:
-        #     for l, c in enumerate(params.cls):
-        #         y = extract_cls_mask(mask_true, cls)
-        #
-        #         # Save the binary masks as one hot representations
-        #         mask_true[:, :, l] = y[:, :, 0]
 
         # Predict the images
-        predicted_mask_padded, _ = predict_img(model, params, img_padded, n_bands, n_cls, num_gpus)
+        predicted_mask_padded, predicted_binary_mask_padded = predict_img(model, params, img_padded, n_bands, n_cls, num_gpus)
 
         # Remove padding
         predicted_mask = predicted_mask_padded[padding_size:-padding_size, padding_size:-padding_size, :]
 
-        # Create a nested dict to save evaluation metrics for each product
-        evaluation_metrics[product] = {}
+        # Remove padding
+        predicted_binary_mask = predicted_binary_mask_padded[padding_size:-padding_size, padding_size:-padding_size, :]
 
-        # Find the valid pixels and cast to uint8 to reduce processing time
-        valid_pixels_mask = np.uint8(np.clip(img[:, :, 0], 0, 1))
-        #mask_true = np.uint8(mask_true)
+        # Output the predicted image
         print('IN 8')
-        # Loop over different threshold values
-        data_output_path = params.project_path + "data/output/KTH/"
 
-        for j, threshold in enumerate(thresholds):
-            predicted_binary_mask_test = np.uint16(predicted_mask >= threshold)
-
-            arr = np.uint16(predicted_binary_mask_test[:, :, 0] * 65535)  # np.uint8(predicted_mask >= threshold)  #pred_unet_thresholded = pred_unet.point(lambda p: p > threshold*255)
-            array_buffer = arr.tobytes()
-            img = Image.new("I", arr.T.shape)
-            img.frombytes(array_buffer, 'raw', "I;16")
-            if save_output:
-                img.save(data_output_path + '%s-model%s-prediction-%s.png' % (product, params.modelID, threshold))
-        #
-        #     accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix = calculate_evaluation_criteria(
-        #         valid_pixels_mask, predicted_binary_mask, mask_true)
-        #
-        #     # Create an additional nesting in the dict for each threshold value
-        #     evaluation_metrics[product]['threshold_' + str(threshold)] = {}
-        #
-        #     # Save the values in the dict
-        #     evaluation_metrics[product]['threshold_' + str(threshold)]['tp'] = tp
-        #     evaluation_metrics[product]['threshold_' + str(threshold)]['fp'] = fp
-        #     evaluation_metrics[product]['threshold_' + str(threshold)]['fn'] = fn
-        #     evaluation_metrics[product]['threshold_' + str(threshold)]['tn'] = tn
-        #     evaluation_metrics[product]['threshold_' + str(threshold)]['npix'] = npix
-        #     evaluation_metrics[product]['threshold_' + str(threshold)]['accuracy'] = accuracy
-        #     evaluation_metrics[product]['threshold_' + str(threshold)]['precision'] = precision
-        #     evaluation_metrics[product]['threshold_' + str(threshold)]['recall'] = recall
-        #     evaluation_metrics[product]['threshold_' + str(threshold)]['f_one_score'] = f_one_score
-        #     evaluation_metrics[product]['threshold_' + str(threshold)]['omission'] = omission
-        #     evaluation_metrics[product]['threshold_' + str(threshold)]['comission'] = comission
-        #     evaluation_metrics[product]['threshold_' + str(threshold)]['pixel_jaccard'] = pixel_jaccard
+        arr = np.uint16(predicted_binary_mask[:, :, 0] * 65535)
+        array_buffer = arr.tobytes()
+        img = Image.new("I", arr.T.shape)
+        img.frombytes(array_buffer, 'raw', "I;16")
+        img.save(data_output_path + '%s-prediction-%s-%s.png' % (product, params.threshold, ''.join(map(str, params.bands))))
 
         print('Testing product ', evaluating_product_no, ':', product)
 
         exec_time = str(time.time() - start_time)
         print("Prediction finished in      : " + exec_time + "s")
-        # for threshold in thresholds:
-        #     print("threshold=" + str(threshold) +
-        #           ": tp=" + str(evaluation_metrics[product]['threshold_' + str(threshold)]['tp']) +
-        #           ": fp=" + str(evaluation_metrics[product]['threshold_' + str(threshold)]['fp']) +
-        #           ": fn=" + str(evaluation_metrics[product]['threshold_' + str(threshold)]['fn']) +
-        #           ": tn=" + str(evaluation_metrics[product]['threshold_' + str(threshold)]['tn']) +
-        #           ": Accuracy=" + str(evaluation_metrics[product]['threshold_' + str(threshold)]['accuracy']) +
-        #           ": precision=" + str(evaluation_metrics[product]['threshold_' + str(threshold)]['precision']) +
-        #           ": recall=" + str(evaluation_metrics[product]['threshold_' + str(threshold)]['recall']) +
-        #           ": omission=" + str(evaluation_metrics[product]['threshold_' + str(threshold)]['omission']) +
-        #           ": comission=" + str(evaluation_metrics[product]['threshold_' + str(threshold)]['comission']) +
-        #           ": pixel_jaccard=" + str(evaluation_metrics[product]['threshold_' + str(threshold)]['pixel_jaccard']))
 
         evaluating_product_no += 1
 
-        # Save images and predictions
-        # data_output_path = params.project_path + "data/output/KTH/"
-        # if not os.path.isfile(data_output_path + '%s.jpeg' % product[0:24]):
-        #     Image.open(data_path + product[0:25] + '.jpeg').save(data_output_path + '%s_photo.jpeg' % product[0:24])
-        #     Image.open(data_path + product[0:25] + 'mask.png').save(data_output_path + '%s_mask.png' % product[0:25])
+        print('IN 9')
 
-        # if save_output:
-        #     # Save predicted mask as 16 bit png file (https://github.com/python-pillow/Pillow/issues/2970)
-        #     arr = np.uint16(predicted_mask[:, :, 0] * 65535)
-        #     array_buffer = arr.tobytes()
-        #     img = Image.new("I", arr.T.shape)
-        #     img.frombytes(array_buffer, 'raw', "I;16")
-        #     if save_output:
-        #         img.save(data_output_path + '%s-model%s-prediction.png' % (product, params.modelID))
-
-            #Image.fromarray(np.uint8(predicted_mask[:, :, 0]*255)).save(data_output_path + '%s-model%s-prediction.png' % (product[0:24], params.modelID))
+        # # Save images
+        # if not os.path.isfile(data_output_path + product[:-4]):
+        #     Image.open(data_path + product[:-4] + '.tif').save(data_output_path + product)
 
     exec_time = str(time.time() - start_time)
     print("Dataset evaluated in: " + exec_time + "s")
     print("Or " + str(float(exec_time)/np.size(products)) + "s per image")
-
-    if write_csv:
-        print('IN WRITE CSV')
-        write_csv_files(evaluation_metrics, params)
-
 
 
 def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write_csv=True):

@@ -27,26 +27,26 @@ def toa_correct_dataset(params):
         # Save individual bands temporarily
 
         for b in range(1, 11):
-            if b < 8:
+            if b in [2,3,4]:
                 p3 = data_output_path + product[0:25] + 'B' + str(b) + '.tif'
                 cmd = [p1, '-b', str(b), p2, p3]
                 print(cmd)
                 subprocess.run(cmd)
                 print('IN TOA CORRECT 2')
 
-            else:
-                band_number = b + 1
-                p3 = data_output_path + product[0:25] + 'B' + str(band_number) + '.tif'
-                cmd = [p1, '-b', str(b), p2, p3]
-                print(cmd)
-                subprocess.run(cmd)
-                print('IN TOA CORRECT 3')
+            # else:
+            #     band_number = b + 1
+            #     p3 = data_output_path + product[0:25] + 'B' + str(band_number) + '.tif'
+            #     cmd = [p1, '-b', str(b), p2, p3]
+            #     print(cmd)
+            #     subprocess.run(cmd)
+            #     print('IN TOA CORRECT 3')
         #
         # # ## CREATE LIST of FILE NAME FRO GDAL_MERGE
         subprocess.run('dir /b /s *B?.tif > list.txt', shell=True, cwd=data_output_path)
         print('IN TOA CORRECT 41')
-        subprocess.run('dir /b /s *B10.tif *B11.tif> list2.txt', shell=True, cwd=data_output_path)
-        print('IN TOA CORRECT 51')
+        # subprocess.run('dir /b /s *B10.tif *B11.tif> list2.txt', shell=True, cwd=data_output_path)
+        # print('IN TOA CORRECT 51')
 
         # # Run Fmask -GDAL
         c5 = data_output_path[:-1] + '/ref.img'
@@ -55,11 +55,11 @@ def toa_correct_dataset(params):
         subprocess.run(cmd)
         print('IN TOA CORRECT 4')
 
-        c5 = data_output_path[:-1] + '/thermal.img'
-        c6 = data_output_path[:-1] + '/list2.txt'
-        cmd = ['python', c1, c2, '-of', c3, '-co', c4, '-o', c5, '--optfile', c6]
-        subprocess.run(cmd)
-        print('IN TOA CORRECT 5')
+        # c5 = data_output_path[:-1] + '/thermal.img'
+        # c6 = data_output_path[:-1] + '/list2.txt'
+        # cmd = ['python', c1, c2, '-of', c3, '-co', c4, '-o', c5, '--optfile', c6]
+        # subprocess.run(cmd)
+        # print('IN TOA CORRECT 5')
 
         # Run Fmask
         d1 = data_path[:-1] + '/' + product[0:21] + '_mtl.txt'
