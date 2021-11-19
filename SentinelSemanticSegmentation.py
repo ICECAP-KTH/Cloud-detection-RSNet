@@ -197,7 +197,7 @@ if __name__ == '__main__':
         # If a model has been trained, use that one. If not, load a new one.
         if args.model == 'U-net':
             model = Unet(params)
-        evaluate_test_set(model, params.test_dataset, params.num_gpus, params)
+        evaluate_test_set(model, params.test_dataset, params.num_gpus, params, True, True)
 
     # Print execution time
     exec_time = str(time.time() - start_time)
