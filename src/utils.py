@@ -221,7 +221,7 @@ def predict_img(model, params, img, n_bands, n_cls, num_gpus):
     #start_time = time.time()
     predicted_patches = np.zeros((np.shape(img_patched)[0],
                                   params.patch_size-params.overlap, params.patch_size-params.overlap, n_cls))
-    predicted_patches[indices, :, :, :] = model.predict(img_patched[indices, :, :, :], n_bands, n_cls, num_gpus, params)
+    predicted_patches[indices, :, :, :] = model.predict(img_patched[indices, :, :, :], n_cls, params)
     #exec_time = str(time.time() - start_time)
     #print("Prediction of patches (not including splitting and stitching) finished in: " + exec_time + "s")
 

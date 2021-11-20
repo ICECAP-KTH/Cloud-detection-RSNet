@@ -199,7 +199,7 @@ class Unet(object):
         else:
             self.model.save_weights(params.project_path + 'models/Unet/' + model_name)
 
-    def predict(self, img, n_bands, n_cls, num_gpus, params):
+    def predict(self, img, n_cls, params):
         # Predict batches of patches
         patches = np.shape(img)[0]  # Total number of patches
         patch_batch_size = 128

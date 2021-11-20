@@ -2,6 +2,7 @@ import os
 import time
 import numpy as np
 import tifffile as tiff
+import cv2
 from PIL import Image
 from src.utils import predict_img
 
@@ -23,7 +24,7 @@ def evaluate_test_set(model, params, test_dataset):
 
     start_time_dataset = time.time()
 
-    for count,product in enumerate(products):
+    for count, product in enumerate(products):
         # Time the prediction
         print('Predicting product ', count, ':', product)
 
@@ -45,7 +46,8 @@ def evaluate_test_set(model, params, test_dataset):
         img_padded = np.pad(img, pad_width=npad, mode='symmetric')
 
         # Predict the images
-        predicted_mask_padded, predicted_binary_mask_padded = predict_img(model, params, img_padded, n_bands, n_cls, params.num_gpus)
+        predicted_mask_padded, predicted_binary_mask_padded = predict_img(model, params, img_padded, n_bands, n_cls,
+                                                                          params.num_gpus)
 
         # Remove padding
         predicted_binary_mask = predicted_binary_mask_padded[padding_size:-padding_size, padding_size:-padding_size, :]
@@ -55,10 +57,30 @@ def evaluate_test_set(model, params, test_dataset):
 
         # Output the predicted image
         arr = np.uint16(predicted_binary_mask[:, :, 0] * 65535)
-        array_buffer = arr.tobytes()
-        img = Image.new("I", arr.T.shape)
-        img.frombytes(array_buffer, 'raw', "I;16")
-        img.save(data_output_path + '%s-prediction-%s-%s-%s.png' % (product[:-4], params.threshold, ''.join(map(str, params.bands)), params.patch_size))
+
+        # Apply no morphological operations
+        arrO = np.uint16(predicted_binary_mask[:, :, 0] * 65535)
+        array_bufferO = arrO.tobytes()
+        imgO = Image.new("I", arrO.T.shape)
+        imgO.frombytes(array_bufferO, 'raw', "I;16")
+        imgO.save(data_output_path + '%s-prediction-%s.png' % (product[:-4], 'original'))
+
+        # Apply opening for the predicted binary mask
+        kernel = np.ones((7, 7), np.uint16)
+
+        arr1 = cv2.morphologyEx(arr, cv2.MORPH_OPEN, kernel)
+        array_buffer1 = arr1.tobytes()
+        img1 = Image.new("I", arr1.T.shape)
+        img1.frombytes(array_buffer1, 'raw', "I;16")
+        img1.save(data_output_path + '%s-prediction-%s.png' % (product[:-4], 'open'))
+
+        # Apply erosion for the predicted binary mask
+
+        arr2 = cv2.erode(arr, kernel, iterations=1)
+        array_buffer2 = arr2.tobytes()
+        img2 = Image.new("I", arr2.T.shape)
+        img2.frombytes(array_buffer2, 'raw', "I;16")
+        img2.save(data_output_path + '%s-prediction-%s.png' % (product[:-4], 'erode'))
 
         # Save original RGB image
         if not os.path.isfile(data_output_path + product):
@@ -66,4 +88,4 @@ def evaluate_test_set(model, params, test_dataset):
 
     exec_time = str(time.time() - start_time_dataset)
     print("Dataset evaluated in: " + exec_time + "s")
-    print("That is " + str(float(exec_time)/np.size(products)) + "s per image")
+    print("That is " + str(float(exec_time) / np.size(products)) + "s per image")
