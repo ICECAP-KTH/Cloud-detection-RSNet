@@ -8,15 +8,10 @@ from src.utils import predict_img
 
 
 def evaluate_test_set(model, params, test_dataset):
-    # Find the number of classes and bands
-    if params.collapse_cls:
-        n_cls = 1
-    else:
-        n_cls = np.size(params.cls)
-    n_bands = np.size(params.bands)
+
     # Get the name of all the products (scenes)
     data_path = params.project_path + "data/raw/KTH/" + test_dataset + '/'
-    data_output_path = params.project_path + "data/output/KTH/" + test_dataset + '/'
+    data_output_path = params.project_path + "data/output/KTH/" + test_dataset + '_test/'
     products = sorted(os.listdir(data_path))
     products = [p for p in products if '.tif' in p]
     print(products)
@@ -46,8 +41,7 @@ def evaluate_test_set(model, params, test_dataset):
         img_padded = np.pad(img, pad_width=npad, mode='symmetric')
 
         # Predict the images
-        predicted_mask_padded, predicted_binary_mask_padded = predict_img(model, params, img_padded, n_bands, n_cls,
-                                                                          params.num_gpus)
+        predicted_mask_padded, predicted_binary_mask_padded = predict_img(model, params, img_padded)
 
         # Remove padding
         predicted_binary_mask = predicted_binary_mask_padded[padding_size:-padding_size, padding_size:-padding_size, :]
@@ -55,8 +49,7 @@ def evaluate_test_set(model, params, test_dataset):
         exec_time = str(time.time() - start_time_product)
         print("Prediction finished in      : " + exec_time + "s")
 
-        # Output the predicted image
-        arr = np.uint16(predicted_binary_mask[:, :, 0] * 65535)
+        #   Output the predicted image
 
         # Apply no morphological operations
         arrO = np.uint16(predicted_binary_mask[:, :, 0] * 65535)
@@ -64,6 +57,10 @@ def evaluate_test_set(model, params, test_dataset):
         imgO = Image.new("I", arrO.T.shape)
         imgO.frombytes(array_bufferO, 'raw', "I;16")
         imgO.save(data_output_path + '%s-prediction-%s.png' % (product[:-4], 'original'))
+
+
+        #MORPHOLOGICAL OPERATIONS
+        arr = np.uint16(predicted_binary_mask[:, :, 0] * 65535)
 
         # Apply opening for the predicted binary mask
         kernel = np.ones((7, 7), np.uint16)

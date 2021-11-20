@@ -36,11 +36,9 @@ def get_params():
               epochs=5,
               norm_method='enhance_contrast',
               norm_threshold=65535,  # Threshold for the contrast enhancement
-              cls=['cloud', 'thin'],
-              collapse_cls=True,
+              collapse_cls=True,  # Collapse classes to one binary mask (False => multi_cls model)
               affine_transformation=True,  # Regular data augmentation
               brightness_augmentation=False,  # Experimental data augmentation
-              # Collapse classes to one binary mask (False => multi_cls model)
               # TODO: IF YOU CHOOSE BAND 8, IT DOES NOT MATCH THE .npy TRAINING DATA
               bands=[1, 2, 3],  # Band 8 is the panchromatic band
               # Get absolute path of the project (https://stackoverflow.com/questions/50499

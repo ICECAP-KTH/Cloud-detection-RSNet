@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 import numpy as np
-import tifffile as tiff
 import cv2
-import time
 
 
 def image_normalizer(img, params, type='enhance_contrast'):
@@ -75,7 +73,7 @@ def patch_image(img, patch_size, overlap):
     # TODO: Get the size of the padding right.
     # Add zeropadding around the image (has to match the overlap)
     img_shape = np.shape(img)
-    img_padded = np.zeros((img_shape[0] + 2*patch_size, img_shape[1] + 2*patch_size, img_shape[2]))
+    img_padded = np.zeros((img_shape[0] + 2 * patch_size, img_shape[1] + 2 * patch_size, img_shape[2]))
     img_padded[overlap:overlap + img_shape[0], overlap:overlap + img_shape[1], :] = img
 
     # Find number of patches
@@ -113,10 +111,10 @@ def stitch_image(img_patched, n_height, n_width, patch_size, overlap):
     img = np.zeros((n_width * isz_overlap, n_height * isz_overlap, n_bands))
 
     # Define bbox of the interior of the patch to be stitched (not required if using Cropping2D layer in model)
-    #xmin_overlap = int(overlap / 2)
-    #xmax_overlap = int(patch_size - overlap / 2)
-    #ymin_overlap = int(overlap / 2)
-    #ymax_overlap = int(patch_size - overlap / 2)
+    # xmin_overlap = int(overlap / 2)
+    # xmax_overlap = int(patch_size - overlap / 2)
+    # ymin_overlap = int(overlap / 2)
+    # ymax_overlap = int(patch_size - overlap / 2)
 
     # Stitch the patches together
     for i in range(0, n_width):
@@ -124,7 +122,7 @@ def stitch_image(img_patched, n_height, n_width, patch_size, overlap):
             id = n_height * i + j
 
             # Cut out the interior of the patch
-            #interior_path = img_patched[id, xmin_overlap:xmax_overlap, ymin_overlap:ymax_overlap, :]
+            # interior_path = img_patched[id, xmin_overlap:xmax_overlap, ymin_overlap:ymax_overlap, :]
             interior_patch = img_patched[id, :, :, :]
 
             # Define "pixel coordinates" of the patches in the whole image
@@ -139,40 +137,7 @@ def stitch_image(img_patched, n_height, n_width, patch_size, overlap):
     return img
 
 
-def extract_collapsed_cls(mask, cls):
-    """
-    Combine several classes to one binary mask
-    """
-    # Remember to zeroize class 1
-    if 1 not in cls:
-        mask[mask == 1] = 0
-
-    # Make a binary mask including all classes in cls
-    for c in cls:
-        mask[mask == c] = 1
-    mask[mask != 1] = 0
-
-    return mask
-
-
-def extract_cls_mask(mask, c):
-    """
-    Create a binary mask for a class with integer value c (i.e. if class 'cloud' = 255, then change it to 'cloud' = 1)
-    """
-    # Copy the mask for every iteration (if you set "y=mask", then mask will be overwritten!
-    # https://stackoverflow.com/questions/19951816/python-changes-to-my-copy-variable-affect-the-original-variable
-    y = np.copy(mask)
-    # Remember to zeroize class 1
-    if c != 1:
-        y[y == 1] = 0
-
-    # Make a binary mask for the specific class
-    y[y == c] = 1
-    y[y != 1] = 0
-    return y
-
-
-def predict_img(model, params, img, n_bands, n_cls, num_gpus):
+def predict_img(model, params, img):
     """
     Run prediction on an full image
     """
@@ -218,21 +183,23 @@ def predict_img(model, params, img, n_bands, n_cls, num_gpus):
             indices.append(i)  # Use the patch for prediction
 
     # Now do the cloud masking (on non-zero patches according to indices)
-    #start_time = time.time()
+    # start_time = time.time()
     predicted_patches = np.zeros((np.shape(img_patched)[0],
-                                  params.patch_size-params.overlap, params.patch_size-params.overlap, n_cls))
-    predicted_patches[indices, :, :, :] = model.predict(img_patched[indices, :, :, :], n_cls, params)
-    #exec_time = str(time.time() - start_time)
-    #print("Prediction of patches (not including splitting and stitching) finished in: " + exec_time + "s")
+                                  params.patch_size - params.overlap, params.patch_size - params.overlap, 1))
+    predicted_patches[indices, :, :, :] = model.predict(img_patched[indices, :, :, :], params)
+    # exec_time = str(time.time() - start_time)
+    # print("Prediction of patches (not including splitting and stitching) finished in: " + exec_time + "s")
 
     # Stitch the patches back together
-    predicted_stitched = stitch_image(predicted_patches, n_height, n_width, patch_size=params.patch_size, overlap=params.overlap)
+    predicted_stitched = stitch_image(predicted_patches, n_height, n_width, patch_size=params.patch_size,
+                                      overlap=params.overlap)
 
     # Now throw away the padded sections from the overlap
     padding = int(params.overlap / 2)  # The overlap is over 2 patches, so you need to throw away overlap/2 on each
-    predicted_mask = predicted_stitched[padding-1:padding-1+img_shape[0],  # padding-1 because it is index in array
-                                        padding-1:padding-1+img_shape[1],
-                                        :]
+    predicted_mask = predicted_stitched[padding - 1:padding - 1 + img_shape[0],
+                     # padding-1 because it is index in array
+                     padding - 1:padding - 1 + img_shape[1],
+                     :]
 
     # Throw away the inpainting of the zero pixels in the individual patches
     # The summation is done to ensure that all pixels are included. The bands do not perfectly overlap (!)
@@ -244,213 +211,20 @@ def predict_img(model, params, img, n_bands, n_cls, num_gpus):
     return predicted_mask, predicted_binary_mask
 
 
-def get_cls(satellite, dataset, cls_string):
-    """
-    Get the classes from the integer values in the true masks (i.e. 'water' in sen2cor has integer value 3)
-    """
-    if satellite == 'Sentinel-2':
-        if dataset == 'sen2cor':
-            if cls_string == 'clear':
-                cls_int = [2, 4, 5]
-            elif cls_string == 'cloud':
-                cls_int = [8, 9]
-            elif cls_string == 'shadow':
-                cls_int = [3]
-            elif cls_string == 'snow':
-                cls_int = [11]
-            elif cls_string == 'water':
-                cls_int = [6]
-
-        elif dataset == 'fmask':
-            if cls_string == 'clear':
-                cls_int = [1]
-            elif cls_string == 'cloud':
-                cls_int = [2]
-            elif cls_string == 'shadow':
-                cls_int = [3]
-            elif cls_string == 'snow':
-                cls_int = [4]
-            elif cls_string == 'water':
-                cls_int = [5]
-
-    elif satellite == 'Landsat8':
-        if dataset == 'Biome_gt':
-            cls_int = []
-            for c in cls_string:
-                if c == 'fill':
-                    cls_int.append(0)
-                elif c == 'shadow':
-                    cls_int.append(64)
-                elif c == 'clear':
-                    cls_int.append(128)
-                elif c == 'thin':
-                    cls_int.append(192)
-                elif c == 'cloud':
-                    cls_int.append(255)
-
-        elif dataset == 'Biome_fmask':
-            cls_int = []
-            for c in cls_string:
-                if c == 'fill':
-                    cls_int.append(0)
-                elif c == 'clear':
-                    cls_int.append(1)
-                elif c == 'cloud':
-                    cls_int.append(2)
-                elif c == 'shadow':
-                    cls_int.append(3)
-                elif c == 'snow':
-                    cls_int.append(4)
-                elif c == 'water':
-                    cls_int.append(5)
-
-        elif dataset == 'SPARCS_gt':
-            cls_int = []
-            for c in cls_string:
-                if c == 'shadow':
-                    cls_int.append(0)
-                    cls_int.append(1)
-                elif c == 'water':
-                    cls_int.append(2)
-                    cls_int.append(6)
-                elif c == 'snow':
-                    cls_int.append(3)
-                elif c == 'cloud':
-                    cls_int.append(5)
-                elif c == 'clear':
-                    cls_int.append(4)
-
-        elif dataset == 'SPARCS_fmask':
-            cls_int = []
-            for c in cls_string:
-                if c == 'fill':
-                    cls_int.append(0)
-                elif c == 'clear':
-                    cls_int.append(1)
-                elif c == 'cloud':
-                    cls_int.append(2)
-                elif c == 'shadow':
-                    cls_int.append(3)
-                elif c == 'snow':
-                    cls_int.append(4)
-                elif c == 'water':
-                    cls_int.append(5)
-    return cls_int
-
-
-def get_model_name(params):
+def threshold_prediction(prediction, threshold):
     '''
-    Combine the parameters for the model into a string (to name the model file)
+    Thresholds a saliency map and returns a binary mask
     '''
-    if params.modelID:
-        model_name = 'Unet_' + params.satellite + '_' + params.modelID
-    elif params.satellite == 'Sentinel-2':
-        model_name = 'sentinel2_unet_cls-' + "".join(str(c) for c in params.cls) + \
-                     '_initmodel-' + params.initial_model + \
-                     '_collapse' + str(params.collapse_cls) + \
-                     '_bands' + "".join(str(b) for b in params.bands) + \
-                     "_lr" + str(params.learning_rate) + \
-                     '_decay' + str(params.decay) + \
-                     '_L2reg' + str(params.L2reg) + \
-                     '_dropout' + str(params.dropout) + '.hdf5'
-    elif params.satellite == 'Landsat8':
-        model_name = 'landsat8_unet_cls-' + "".join(str(c) for c in params.cls) + \
-                     '_collapse' + str(params.collapse_cls) + \
-                     '_bands' + "".join(str(b) for b in params.bands) + \
-                     "_lr" + str(params.learning_rate) + \
-                     '_decay' + str(params.decay) + \
-                     '_L2reg' + str(params.L2reg) + \
-                     '_dropout' + str(params.dropout) + '.hdf5'
-    return model_name
+    # See https://stackoverflow.com/questions/765736/using-pil-to-make-all-white-pixels-transparent
+    # and https://stackoverflow.com/questions/10640114/overlay-two-same-sized-images-in-python
+    prediction = prediction.convert("RGBA")
+    datas = prediction.getdata()
+    newData = []
+    for item in datas:
+        if item[0] >= threshold * 255:
+            newData.append((253, 231, 36, 255))  # The pixel values for '1' in the mask
+        else:
+            newData.append((0, 0, 0, 0))  # Makes it completely transparent
+    prediction.putdata(newData)
 
-
-def load_product(name, params, product_path, toa_path):
-
-    if params.satellite == 'Sentinel-2':
-        img_rgb = np.zeros((10980, 10980, 3))
-        img_rgb[:, :, 2] = tiff.imread(product_path + name + '_B02_10m.tiff')
-        img_rgb[:, :, 1] = tiff.imread(product_path + name + '_B03_10m.tiff')
-        img_rgb[:, :, 0] = tiff.imread(product_path + name + '_B04_10m.tiff')
-
-        # Load the img to be used for prediction
-        img = np.zeros((10980, 10980, np.size(params.bands)))
-        for i, b in enumerate(params.bands):  # Not beautiful. Should not have included resolution in filename
-            if b == 1:
-                img[:, :, i] = tiff.imread(product_path + name + '_B01_60m.tiff')
-            elif b == 2:
-                img[:, :, i] = tiff.imread(product_path + name + '_B02_10m.tiff')
-            elif b == 3:
-                img[:, :, i] = tiff.imread(product_path + name + '_B03_10m.tiff')
-            elif b == 4:
-                img[:, :, i] = tiff.imread(product_path + name + '_B04_10m.tiff')
-            elif b == 5:
-                img[:, :, i] = tiff.imread(product_path + name + '_B05_20m.tiff')
-            elif b == 6:
-                img[:, :, i] = tiff.imread(product_path + name + '_B06_20m.tiff')
-            elif b == 7:
-                img[:, :, i] = tiff.imread(product_path + name + '_B07_20m.tiff')
-            elif b == 8:
-                img[:, :, i] = tiff.imread(product_path + name + '_B08_10m.tiff')
-            elif b == 9:
-                img[:, :, i] = tiff.imread(product_path + name + '_B09_60m.tiff')
-            elif b == 10:
-                img[:, :, i] = tiff.imread(product_path + name + '_B10_60m.tiff')
-            elif b == 11:
-                img[:, :, i] = tiff.imread(product_path + name + '_B11_20m.tiff')
-            elif b == 12:
-                img[:, :, i] = tiff.imread(product_path + name + '_B12_20m.tiff')
-            elif b == 13:
-                img[:, :, i] = tiff.imread(product_path + name + '_B8A_20m.tiff')
-
-    elif params.satellite == 'Landsat8':
-
-        # Load TOA and set all NaN values to 0
-        toa = tiff.imread(toa_path + name + '_toa.TIF')
-        toa[toa == 32767] = 0
-
-        # Create RGB image
-        width, height = np.size(toa, axis=0), np.size(toa, axis=1)
-        img_rgb = np.zeros((width, height, 3))
-        img_rgb[:, :, 0] = toa[:, :, 3]
-        img_rgb[:, :, 1] = toa[:, :, 2]
-        img_rgb[:, :, 2] = toa[:, :, 1]
-
-        # Load the img to be used for prediction
-        img = np.zeros((width, height, np.size(params.bands)), dtype=np.float32)
-        for i, b in enumerate(params.bands):  # Not beautiful. Should not have included resolution in filename
-            if b == 1:
-                img[:, :, i] = toa[:, :, 0]
-            elif b == 2:
-                img[:, :, i] = toa[:, :, 1]
-            elif b == 3:
-                img[:, :, i] = toa[:, :, 2]
-            elif b == 4:
-                img[:, :, i] = toa[:, :, 3]
-            elif b == 5:
-                img[:, :, i] = toa[:, :, 4]
-            elif b == 6:
-                img[:, :, i] = toa[:, :, 5]
-            elif b == 7:
-                img[:, :, i] = toa[:, :, 6]
-            elif b == 8:
-                img[:, :, i] = tiff.imread(product_path + name + '_B8.TIF')
-            elif b == 9:
-                img[:, :, i] = toa[:, :, 7]
-
-            if b == 10:
-                img[:, :, i] = tiff.imread(product_path + name + '_B10.TIF')
-            elif b == 11:
-                img[:, :, i] = tiff.imread(product_path + name + '_B11.TIF')
-
-        # Create the overlapping pixels mask (Band 1-8 are overlapping, but 9, 10, 11 vary at the border regions)
-
-        # Find the valid pixels and cast to uint8 to reduce processing time. The
-        #
-        overlapping_pixels_mask = np.uint8(np.clip(toa[:, :, 0], 0, 1)) & \
-                                  np.uint8(np.clip(toa[:, :, 7], 0, 1)) & \
-                                  np.uint8(np.clip(tiff.imread(product_path + name + '_B10.TIF'), 0, 1)) & \
-                                  np.uint8(np.clip(tiff.imread(product_path + name + '_B11.TIF'), 0, 1))
-
-    return img, img_rgb, overlapping_pixels_mask
-
-
+    return prediction

@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 import time
 import argparse
-from src.models.params import get_params
-from src.models.Unet import Unet
-from src.models.evaluate_model import evaluate_test_set
+from src.params import get_params
+from src.Unet import Unet
+from src.evaluate_model import evaluate_test_set
 
 # Don't allow tensorflow to reserve all memory available
 # from keras.backend import set_session
@@ -24,7 +24,7 @@ parser = argparse.ArgumentParser(description='Pipeline for running the project',
 # has to be provided to run the step. When using action='store_false', the step will be run when this file is executed.
 parser.add_argument('--test',
                     type=str,
-                    default='KTHA1',
+                    default='KTHTest',
                     help='Predict cloud cover on these images')
 
 if __name__ == '__main__':

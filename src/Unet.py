@@ -2,28 +2,28 @@
 # Needed to set seed for random generators for making reproducible experiments
 import tensorflow as tf
 from numpy.random import seed
+from keras import backend as K
+
 seed(1)
 tf.random.set_seed(1)
 
 import numpy as np
 
-
 from tensorflow.keras.models import Model
-from tensorflow.keras.layers import BatchNormalization, Input, Conv2D, MaxPooling2D, UpSampling2D, Concatenate, Dropout, Cropping2D, Activation
-from tensorflow.keras.optimizers import Adam, Nadam
+from tensorflow.keras.layers import BatchNormalization, Input, Conv2D, MaxPooling2D, UpSampling2D, Concatenate, Dropout, \
+    Cropping2D, Activation
 from tensorflow.python.keras.utils.multi_gpu_utils import multi_gpu_model
-from ..utils import get_model_name
-from src.models.model_utils import jaccard_coef, jaccard_coef_thresholded, jaccard_coef_loss, swish, get_callbacks, ImageSequence
 from keras.utils.generic_utils import get_custom_objects  # To use swish activation function
+
+
+def swish(x):
+    return (K.sigmoid(x) * x)
 
 
 class Unet(object):
     def __init__(self, params):
         # Seed for the random generators
         self.seed = 1
-
-        # Find the model you would like
-        model_name = get_model_name(params)
 
         # Find the number of classes and bands
         if params.collapse_cls:
@@ -35,20 +35,9 @@ class Unet(object):
         # Create the model in keras
         if params.num_gpus == 1:
             self.model = self.__create_inference__(n_bands, n_cls, params)  # initialize the model
-            try:
-                self.model.load_weights(params.project_path + 'models/Unet/' + model_name)
-                print('Weights loaded from model: ' + model_name)
-            except:
-                print('No weights found')
-
         else:
             with tf.device("/cpu:0"):
                 self.model = self.__create_inference__(n_bands, n_cls, params)  # initialize the model on the CPU
-                try:
-                    self.model.load_weights(params.project_path + 'models/Unet/' + model_name)
-                    print('Weights loaded from model: ' + model_name)
-                except:
-                    print('No weights found')
             self.model = multi_gpu_model(self.model, gpus=params.num_gpus)  # Make it run on multiple GPUs
 
     def __create_inference__(self, n_bands, n_cls, params):
@@ -136,73 +125,11 @@ class Unet(object):
 
         return model
 
-    def train(self, params):
-        # Define callbacks
-        csv_logger, model_checkpoint, reduce_lr, tensorboard, early_stopping = get_callbacks(params)
-        used_callbacks = [csv_logger, model_checkpoint, tensorboard]
-        if params.reduce_lr:
-            used_callbacks.append(reduce_lr)
-        if params.early_stopping:
-            used_callbacks.append(early_stopping)
-
-        # Configure optimizer (use Nadam or Adam and 'binary_crossentropy' or jaccard_coef_loss)
-        if params.optimizer == 'Adam':
-            if params.loss_func == 'binary_crossentropy':
-                self.model.compile(optimizer=Adam(lr=params.learning_rate, decay=params.decay, amsgrad=True),
-                                   loss='binary_crossentropy',
-                                   metrics=['binary_crossentropy', jaccard_coef_loss, jaccard_coef,
-                                            jaccard_coef_thresholded, 'accuracy'])
-            elif params.loss_func == 'jaccard_coef_loss':
-                self.model.compile(optimizer=Adam(lr=params.learning_rate, decay=params.decay, amsgrad=True),
-                                   loss=jaccard_coef_loss,
-                                   metrics=['binary_crossentropy', jaccard_coef_loss, jaccard_coef,
-                                            jaccard_coef_thresholded, 'accuracy'])
-        elif params.optimizer == 'Nadam':
-            if params.loss_func == 'binary_crossentropy':
-                self.model.compile(optimizer=Nadam(lr=params.learning_rate),
-                                   loss='binary_crossentropy',
-                                   metrics=['binary_crossentropy', jaccard_coef_loss, jaccard_coef,
-                                            jaccard_coef_thresholded, 'accuracy'])
-            elif params.loss_func == 'jaccard_coef_loss':
-                self.model.compile(optimizer=Nadam(lr=params.learning_rate),
-                                   loss=jaccard_coef_loss,
-                                   metrics=['binary_crossentropy', jaccard_coef_loss, jaccard_coef,
-                                            jaccard_coef_thresholded, 'accuracy'])
-
-        # Create generators
-        image_generator = ImageSequence(params, shuffle=True, seed=self.seed, augment_data=params.affine_transformation)
-        val_generator = ImageSequence(params, shuffle=True, seed=self.seed, augment_data=params.affine_transformation,
-                                      validation_generator=True)
-
-        # Do the training
-        print('------------------------------------------')
-        print('Start training:')
-        self.model.fit_generator(image_generator,
-                                 epochs=params.epochs,
-                                 steps_per_epoch=params.steps_per_epoch,
-                                 verbose=1,
-                                 workers=4,
-                                 max_queue_size=16,
-                                 use_multiprocessing=True,
-                                 shuffle=False,
-                                 callbacks=used_callbacks,
-                                 validation_data=val_generator,
-                                 validation_steps=None)
-
-        # Save the weights (append the val score in the name)
-        # There is a bug with multi_gpu_model (https://github.com/kuza55/keras-extras/issues/3), hence model.layers[-2]
-        model_name = get_model_name(params)
-        if params.num_gpus != 1:
-            self.model = self.model.layers[-2]
-            self.model.save_weights(params.project_path + 'models/Unet/' + model_name)
-            self.model = multi_gpu_model(self.model, gpus=params.num_gpus)  # Make it run on multiple GPUs
-        else:
-            self.model.save_weights(params.project_path + 'models/Unet/' + model_name)
-
-    def predict(self, img, n_cls, params):
+    def predict(self, img, params):
         # Predict batches of patches
         patches = np.shape(img)[0]  # Total number of patches
         patch_batch_size = 128
+        n_cls = 1  # Number of classes to divide : We have binary classification, so we have n_cls = 1
 
         # Do the prediction
         predicted = np.zeros((patches, params.patch_size - params.overlap, params.patch_size - params.overlap, n_cls))
@@ -210,4 +137,3 @@ class Unet(object):
             predicted[i:i + patch_batch_size, :, :, :] = self.model.predict(img[i:i + patch_batch_size, :, :, :])
 
         return predicted
-
