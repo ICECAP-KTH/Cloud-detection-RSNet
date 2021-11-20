@@ -192,31 +192,25 @@ def __evaluate_sparcs_dataset__(model, num_gpus, params, save_output=False, writ
 
 def __evaluate_kth_dataset__(model, num_gpus, params, save_output=True, write_csv=False):
     # Find the number of classes and bands
-    print('IN 2')
+    print('IN 1')
     if params.collapse_cls:
         n_cls = 1
     else:
         n_cls = np.size(params.cls)
     n_bands = np.size(params.bands)
-    print('IN 3')
     # Get the name of all the products (scenes)
-    data_path = params.project_path + "data/raw/KTH/"
-    toa_path = params.project_path + "data/raw/KTH/"
-    data_output_path = params.project_path + "data/output/KTH/"
+    data_path = params.project_path + "data/raw/KTH/KTHA3/"
+    toa_path = params.project_path + "data/raw/KTH/KTHA3/"
+    data_output_path = params.project_path + "data/output/KTH/KTHA3/"
     products = sorted(os.listdir(data_path))
     print(products)
     print(len(products))
 
-
-    # Define thresholds and initialize evaluation metrics dict
-    thresholds = [0.511]
-
     evaluation_metrics = {}
     evaluating_product_no = 1  # Used in print statement later
-    print('IN 5')
     for product in products:
         # Time the prediction
-        print('IN 6')
+        print('IN 3')
 
         start_time = time.time()
 
@@ -234,7 +228,6 @@ def __evaluate_kth_dataset__(model, num_gpus, params, save_output=True, write_cs
         padding_size = params.overlap
         npad = ((padding_size, padding_size), (padding_size, padding_size), (0, 0))
         img_padded = np.pad(img, pad_width=npad, mode='symmetric')
-        print('IN 7')
 
         # Predict the images
         predicted_mask_padded, predicted_binary_mask_padded = predict_img(model, params, img_padded, n_bands, n_cls, num_gpus)
@@ -246,13 +239,11 @@ def __evaluate_kth_dataset__(model, num_gpus, params, save_output=True, write_cs
         predicted_binary_mask = predicted_binary_mask_padded[padding_size:-padding_size, padding_size:-padding_size, :]
 
         # Output the predicted image
-        print('IN 8')
-
         arr = np.uint16(predicted_binary_mask[:, :, 0] * 65535)
         array_buffer = arr.tobytes()
         img = Image.new("I", arr.T.shape)
         img.frombytes(array_buffer, 'raw', "I;16")
-        img.save(data_output_path + '%s-prediction-%s-%s.png' % (product, params.threshold, ''.join(map(str, params.bands))))
+        img.save(data_output_path + '%s-prediction-%s-%s-%s.png' % (product, params.threshold, ''.join(map(str, params.bands)), params.patch_size))
 
         print('Testing product ', evaluating_product_no, ':', product)
 
@@ -260,8 +251,6 @@ def __evaluate_kth_dataset__(model, num_gpus, params, save_output=True, write_cs
         print("Prediction finished in      : " + exec_time + "s")
 
         evaluating_product_no += 1
-
-        print('IN 9')
 
         # # Save images
         # if not os.path.isfile(data_output_path + product[:-4]):

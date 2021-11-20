@@ -128,10 +128,10 @@ def get_params(model, satellite):
                   L1L2reg=0.,  # Must be written as float for parser to work
                   decay=0.,  # Must be written as float for parser to work
                   batch_norm_momentum=0.7,  # Momentum in batch normalization layers
-                  threshold=0.5047,  # Threshold to create binary cloud mask 511-1234, 5045 - 123, 5047 - 13
-                  patch_size=256,
+                  threshold=0.5045,  # Threshold to create binary cloud mask 511-1234, 5045 - 123, 5047 - 13
+                  patch_size=64,
                   # Width and height of the patches the img is divided into
-                  overlap=40,
+                  overlap=20,
                   # Overlap in pixels when predicting (to avoid border effects)
                   overlap_train_set=0,
                   # Overlap in training data patches (must be even)
@@ -146,7 +146,7 @@ def get_params(model, satellite):
                   brightness_augmentation=False,  # Experimental data augmentation
                   # Collapse classes to one binary mask (False => multi_cls model)
                   # TODO: IF YOU CHOOSE BAND 8, IT DOES NOT MATCH THE .npy TRAINING DATA
-                  bands=[1,3],  # Band 8 is the panchromatic band
+                  bands=[1,2,3],  # Band 8 is the panchromatic band
                   # Get absolute path of the project (https://stackoverflow.com/questions/50499
                   # /how-do-i-get-the-path-and-name-of-the-file-that-is-currently-executing)
                   # project_path=os.path.dirname(os.path.abspath(inspect.stack()[-1][1])) + "/")

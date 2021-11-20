@@ -21,7 +21,7 @@ import os
 import random
 import numpy as np
 import tensorflow as tf
-from src.data.toa_correction import toa_correct_dataset
+from src.data.toa_correction import toa_correct_dataset_SPARCS, toa_correct_dataset_KTH
 from src.data.make_dataset import make_numpy_dataset
 from src.models.params import get_params
 from src.models.Unet import Unet
@@ -128,7 +128,8 @@ if __name__ == '__main__':
     # Check to see if a new data set should be processed from the raw data
     if args.toa_correct:
         print("Processing TOA CORRECTION on data set")
-        toa_correct_dataset(params)
+        toa_correct_dataset_KTH(params)
+        #toa_correct_dataset_SPARCS(params)
 
     # Check to see if a new data set should be processed from the raw data
     if args.make_dataset:
