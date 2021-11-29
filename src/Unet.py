@@ -25,20 +25,11 @@ class Unet(object):
         # Seed for the random generators
         self.seed = 1
 
-        # Find the number of classes and bands
-        if params.collapse_cls:
-            n_cls = 1
-        else:
-            n_cls = np.size(params.cls)
+        n_cls = 1
         n_bands = np.size(params.bands)
 
         # Create the model in keras
-        if params.num_gpus == 1:
-            self.model = self.__create_inference__(n_bands, n_cls, params)  # initialize the model
-        else:
-            with tf.device("/cpu:0"):
-                self.model = self.__create_inference__(n_bands, n_cls, params)  # initialize the model on the CPU
-            self.model = multi_gpu_model(self.model, gpus=params.num_gpus)  # Make it run on multiple GPUs
+        self.model = self.__create_inference__(n_bands, n_cls, params)  # initialize the model
 
     def __create_inference__(self, n_bands, n_cls, params):
         # Note about BN and dropout: https://stackoverflow.com/questions/46316687/how-to-include-batch-normalization-in-non-sequential-keras-model

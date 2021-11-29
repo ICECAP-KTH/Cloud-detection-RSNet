@@ -40,7 +40,8 @@ def get_params():
               affine_transformation=True,  # Regular data augmentation
               brightness_augmentation=False,  # Experimental data augmentation
               # TODO: IF YOU CHOOSE BAND 8, IT DOES NOT MATCH THE .npy TRAINING DATA
-              bands=[1, 2, 3],  # Band 8 is the panchromatic band
+              bands=[0],  # Band 8 is the panchromatic band
+              morph_op='none',    #erode, open, none
               # Get absolute path of the project (https://stackoverflow.com/questions/50499
               # /how-do-i-get-the-path-and-name-of-the-file-that-is-currently-executing)
               # project_path=os.path.dirname(os.path.abspath(inspect.stack()[-1][1])) + "/")
